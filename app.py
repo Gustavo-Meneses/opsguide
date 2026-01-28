@@ -1,6 +1,6 @@
 import streamlit as st
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
+from mistralai import Mistral
+import os
 
 # Configuração da página
 st.set_page_config(page_title="OpsGuide - Oracle Linux Assistant", page_icon="🐧")
@@ -25,26 +25,29 @@ st.title("🐧 OpsGuide: Oracle Linux & DB Helper")
 # Sidebar para configuração da API
 with st.sidebar:
     st.header("Configurações")
-    # Se a chave já veio do secrets, o campo já inicia preenchido
     api_key = st.text_input("Mistral API Key", value=default_api_key, type="password")
     model = "mistral-tiny"
 
 def generate_response(user_query):
-    client = MistralClient(api_key=api_key)
+    # Nova inicialização do cliente (v1.0+)
+    client = Mistral(api_key=api_key)
     
     system_prompt = (
         "Você é um especialista em infraestrutura focado em Oracle Linux (todas as versões), "
         "Docker/Portainer e administração de PostgreSQL via pgAdmin. "
         "Sua tarefa é fornecer comandos precisos, explicações breves e avisos de segurança. "
+        "Sempre use blocos de código para os comandos. "
         "Responda sempre em Português do Brasil."
     )
     
-    messages = [
-        ChatMessage(role="system", content=system_prompt),
-        ChatMessage(role="user", content=user_query)
-    ]
-    
-    chat_response = client.chat(model=model, messages=messages)
+    # Nova estrutura de chamada de chat
+    chat_response = client.chat.complete(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_query}
+        ]
+    )
     return chat_response.choices[0].message.content
 
 # Interface de busca
