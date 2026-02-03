@@ -44,3 +44,10 @@ A ferramenta utiliza a inteligência artificial da **Mistral AI** para converter
 * *"Como verificar o log do kernel no Oracle Linux 9?"*
 * *"Criar uma stack de container no Portainer para Nginx."*
 * *"Como resetar a senha de um usuário no pgAdmin?"*
+
+
+## ✨ Novidades v2.0
+* **Seletor de Versão:** Escolha entre Oracle Linux 7, 8 ou 9 para garantir a sintaxe correta dos pacotes.
+* **Modo Streaming:** Respostas geradas em tempo real.
+* **Quick Actions:** Botões para tarefas comuns (Firewall, Logs Docker, Disco).
+* **Histórico:** A conversa é mantida durante a sessão.
