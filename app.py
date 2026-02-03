@@ -1,85 +1,139 @@
 import streamlit as st
 from mistralai import Mistral
-import os
+import time
 
-# Configuração da página
+# --- Configuração da Página ---
 st.set_page_config(
-    page_title="OpsGuide - Oracle Linux Assistant",
+    page_title="OpsGuide - Oracle Linux",
     page_icon="🐧",
-    layout="centered"
+    layout="wide" # Mudamos para wide para aproveitar melhor a tela com logs
 )
 
-# --- SEGURANÇA: Recuperação de Credenciais ---
-# A chave nunca é exposta no frontend. Ela deve estar em .streamlit/secrets.toml
-# ou nas Variáveis de Ambiente do serviço de hospedagem.
-api_key = st.secrets.get("MISTRAL_API_KEY")
-
-# Se a chave não for encontrada, bloqueia a aplicação imediatamente.
-if not api_key:
-    st.error("⛔ Erro Crítico: A chave de API não foi configurada no servidor.")
-    st.info("Para o administrador: Configure 'MISTRAL_API_KEY' nos secrets do Streamlit ou variáveis de ambiente.")
-    st.stop() # Interrompe a execução do script aqui.
-
-# Inicializa o cliente Mistral de forma segura (v1.0.0+)
-client = Mistral(api_key=api_key)
-model = "mistral-tiny"
-
-# --- Estilização (UI) ---
+# --- Estilos CSS (Dark/Light Mode friendly) ---
 st.markdown("""
     <style>
-    .main { background-color: #f5f5f5; }
-    .stCodeBlock { border-left: 5px solid #d9534f; background-color: #f8f9fa; }
-    div[data-testid="stToolbar"] { visibility: hidden; } /* Esconde menu de dev do Streamlit */
-    footer { visibility: hidden; } /* Esconde rodapé padrão */
+    .stButton>button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+    }
+    .reportview-container {
+        margin-top: -2em;
+    }
+    /* Destaque para avisos de perigo */
+    .warning-box {
+        background-color: #ffcccc;
+        padding: 10px;
+        border-radius: 5px;
+        border-left: 5px solid #d9534f;
+        color: #a94442;
+        margin-bottom: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- Cabeçalho ---
-st.title("🐧 OpsGuide: Oracle Linux & DB Helper")
-st.markdown("### Copiloto de Infraestrutura")
-st.caption("Base de conhecimento ativa para Oracle Linux, Portainer e pgAdmin.")
+# --- Gestão de Estado (Session State) ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# --- Lógica de Geração (Backend) ---
-def generate_response(user_query):
-    system_prompt = (
-        "Você é um Engenheiro de DevOps Sênior focado em Oracle Linux (todas as versões), "
-        "Docker/Portainer e administração de PostgreSQL via pgAdmin. "
-        "Regras:"
-        "1. Forneça comandos precisos em blocos de código."
-        "2. Se o comando for destrutivo (ex: rm, drop table, stop service), adicione um aviso de PERIGO."
-        "3. Seja conciso e direto. "
-        "4. Responda em Português do Brasil."
+# --- SEGURANÇA: Credenciais ---
+api_key = st.secrets.get("MISTRAL_API_KEY")
+if not api_key:
+    st.error("⛔ Erro Crítico: MISTRAL_API_KEY não configurada nos secrets.")
+    st.stop()
+
+client = Mistral(api_key=api_key)
+model = "mistral-tiny" # Rápido e suficiente para comandos
+
+# --- Sidebar: Contexto Técnico ---
+with st.sidebar:
+    st.title("🔧 Contexto do Servidor")
+    
+    os_version = st.selectbox(
+        "Versão do Oracle Linux:",
+        ["Oracle Linux 9 (UEK R7)", "Oracle Linux 8 (UEK R6)", "Oracle Linux 7 (Legacy)"],
+        index=0
     )
     
-    try:
-        chat_response = client.chat.complete(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_query}
-            ]
-        )
-        return chat_response.choices[0].message.content
-    except Exception as e:
-        return f"⚠️ Erro ao processar solicitação: {str(e)}"
+    tech_focus = st.radio(
+        "Foco da Tarefa:",
+        ["Sistema Operacional (OS)", "Docker / Portainer", "PostgreSQL / pgAdmin"]
+    )
+    
+    st.divider()
+    st.caption("Ações Rápidas:")
+    
+    # Botões que preenchem o chat automaticamente
+    col1, col2 = st.columns(2)
+    if col1.button("🔥 Firewall"):
+        st.session_state.prompt_input = f"Como listar e abrir portas no firewall-cmd para o {os_version}?"
+    if col2.button("🐳 Logs Docker"):
+        st.session_state.prompt_input = "Comando para ver logs de um container específico em tempo real."
+    if st.button("💾 Espaço em Disco"):
+        st.session_state.prompt_input = "Comando para listar espaço em disco human readable e ordenar por pastas maiores."
 
-# --- Interface Principal ---
-query = st.text_input("Digite sua dúvida técnica ou tarefa:", placeholder="Ex: Listar containers parados no Portainer via CLI...")
+# --- Função Principal de Chat ---
+st.title("🐧 OpsGuide Copilot")
+st.markdown(f"**Contexto Ativo:** `{os_version}` | Foco: `{tech_focus}`")
 
-if query:
-    with st.spinner("Analisando documentação e gerando comandos..."):
-        response = generate_response(query)
-        st.markdown("---")
-        st.markdown(response)
+# Exibe histórico de mensagens da sessão atual
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# --- Rodapé Informativo ---
+# --- Input do Usuário ---
+# Verifica se veio de um botão rápido ou digitação manual
+if "prompt_input" in st.session_state and st.session_state.prompt_input:
+    user_input = st.session_state.prompt_input
+    del st.session_state.prompt_input # Limpa para não repetir
+else:
+    user_input = st.chat_input("Digite sua tarefa (ex: Como criar um volume no Portainer?)")
+
+if user_input:
+    # 1. Adiciona pergunta ao histórico visual
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # 2. Monta o Prompt de Sistema Enriquecido
+    system_instruction = (
+        f"Você é um SysAdmin Sênior especialista em {os_version} e {tech_focus}. "
+        "Regras: "
+        "1. Priorize comandos 'dnf' para OL8/9 e 'yum' para OL7. "
+        "2. Se for sobre Portainer/Docker, use 'docker compose' ou CLI. "
+        "3. Se for pgAdmin, explique se é via Interface Web ou Query Tool. "
+        "4. Responda em Português BR. Seja conciso. Use Markdown para código."
+    )
+
+    # 3. Chamada Streaming à API
+    with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        full_response = ""
+        
+        try:
+            stream_response = client.chat.stream(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_input}
+                ]
+            )
+            
+            # Processa o stream chunk por chunk
+            for chunk in stream_response:
+                content = chunk.data.choices[0].delta.content
+                if content:
+                    full_response += content
+                    response_placeholder.markdown(full_response + "▌")
+            
+            response_placeholder.markdown(full_response)
+            
+            # Salva resposta no histórico
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
+        except Exception as e:
+            st.error(f"Erro na API: {str(e)}")
+
+# --- Rodapé ---
 st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: #666; font-size: 12px;'>
-    Ferramenta interna para uso em servidores Oracle Linux.<br>
-    Verifique sempre os comandos antes de executar em produção.
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+st.caption("Nota: Verifique os comandos antes de executar em produção (Principalmente `rm`, `drop`, `stop`).")
