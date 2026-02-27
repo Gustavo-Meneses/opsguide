@@ -1,53 +1,34 @@
-# 🐧 OpsGuide - Assistente de Infraestrutura
+# 🖥️ OpsGuide - Multi-OS Architect & Copilot
 
-Este é um portal de pesquisa inteligente desenvolvido para auxiliar colaboradores com pouca experiência em ambientes **Oracle Linux**, **Containers (Portainer)** e **Bancos de Dados (pgAdmin/PostgreSQL)**.
+O **OpsGuide** é um assistente avançado de infraestrutura que une a precisão dos comandos de terminal (Linux/Windows) com a clareza de diagramas de arquitetura gerados em tempo real.
 
-A ferramenta utiliza a inteligência artificial da **Mistral AI** para converter perguntas em linguagem natural em comandos técnicos precisos.
+## ✨ Diferenciais da Versão 4.0
 
-## 🚀 Tecnologias Utilizadas
+* **Visualização de Arquitetura (Fator Uau):** Agora o assistente não apenas fala o que fazer, mas **desenha** a solução utilizando diagramas **Mermaid.js**. Ideal para entender topologias de rede, containers Docker e switches de Hyper-V.
+* **Inteligência Contextual:** Respostas calibradas para as nuances entre as versões do Oracle Linux (7, 8, 9) e Windows Server (2016 a 2022).
+* **Hardening de Segurança:** Proteção nativa de credenciais via Streamlit Secrets. Sem inputs de chaves na interface.
+* **Streaming de Resposta:** Feedback visual imediato durante a geração de scripts complexos.
 
-* **Python 3.9+**
-* **Streamlit**: Para a interface web rápida.
-* **Mistral AI API**: Como motor de processamento de linguagem natural.
-* **Oracle Linux Context**: Otimizado para comandos `dnf`, `yum`, `nmcli`, `firewall-cmd` e gestão de kernel UEK.
+## 🛠️ Tecnologias Utilizadas
+- **Mistral AI:** Core de processamento de linguagem natural.
+- **Streamlit:** Interface web reativa.
+- **Mermaid.js:** Motor de renderização de diagramas de infraestrutura.
+- **Python:** Backend da aplicação.
 
-## 🛠️ Como Instalar e Rodar
+## 🚀 Como Iniciar
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone [https://github.com/seu-usuario/ops-guide.git](https://github.com/seu-usuario/ops-guide.git)
-    cd ops-guide
-    ```
+1. **Instale os requisitos:**
+   ```bash
+   pip install streamlit mistralai
+Configure os Segredos (.streamlit/secrets.toml):
 
-2.  **Crie um ambiente virtual:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # No Windows: venv\Scripts\activate
-    ```
+Isto, TOML
+MISTRAL_API_KEY = "sua_chave_mistral_aqui"
+Inicie o Assistente:
 
-3.  **Instale as dependências:**
-    ```bash
-    pip install streamlit mistralai
-    ```
+Bash
+streamlit run app.py
+📊 Exemplos de Teste
+Linux: "Como configurar um Proxy Reverso Nginx para um container Docker?" (Gera diagrama de tráfego).
 
-4.  **Execute a aplicação:**
-    ```bash
-    streamlit run app.py
-    ```
-
-## 📋 Requisitos de Uso
-
-* Uma **API Key** válida da Mistral AI (obtenha em [console.mistral.ai](https://console.mistral.ai/)).
-* Acesso à internet para consultas à API.
-
-## 💡 Exemplos de Pesquisa
-* *"Como verificar o log do kernel no Oracle Linux 9?"*
-* *"Criar uma stack de container no Portainer para Nginx."*
-* *"Como resetar a senha de um usuário no pgAdmin?"*
-
-
-## ✨ Novidades v2.0
-* **Seletor de Versão:** Escolha entre Oracle Linux 7, 8 ou 9 para garantir a sintaxe correta dos pacotes.
-* **Modo Streaming:** Respostas geradas em tempo real.
-* **Quick Actions:** Botões para tarefas comuns (Firewall, Logs Docker, Disco).
-* **Histórico:** A conversa é mantida durante a sessão.
+Windows: "Como montar um Cluster de SQL Server simples?" (Gera diagrama de nós/storage).
