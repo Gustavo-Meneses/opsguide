@@ -4,13 +4,23 @@ import streamlit.components.v1 as components
 
 # --- Configuração de Página ---
 st.set_page_config(
-    page_title="OpsGuide - Multi-OS Architect",
+    page_title="OpsGuide - Architect v5.0",
     page_icon="🖥️",
     layout="wide"
 )
 
-# --- Função para Renderizar Diagramas Mermaid ---
-def render_mermaid(code):
+# --- Função para Renderizar Diagramas Mermaid com Paleta Dinâmica ---
+def render_mermaid(code, os_family):
+    # Define cores baseadas no SO
+    if "Linux" in os_family:
+        primary = "#f05a28"  # Laranja Oracle
+        secondary = "#313131"
+        text_color = "#ffffff"
+    else:
+        primary = "#0078d4"  # Azul Microsoft
+        secondary = "#ffffff"
+        text_color = "#000000"
+
     components.html(
         f"""
         <div class="mermaid" style="display: flex; justify-content: center;">
@@ -18,10 +28,21 @@ def render_mermaid(code):
         </div>
         <script type="module">
             import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
+            mermaid.initialize({{ 
+                startOnLoad: true, 
+                theme: 'base',
+                themeVariables: {{
+                    'primaryColor': '{primary}',
+                    'primaryTextColor': '{text_color}',
+                    'primaryBorderColor': '{secondary}',
+                    'lineColor': '{primary}',
+                    'secondaryColor': '{secondary}',
+                    'tertiaryColor': '#f4f4f4'
+                }}
+            }});
         </script>
         """,
-        height=400,
+        height=450,
     )
 
 # --- Estado da Sessão ---
@@ -48,8 +69,8 @@ with st.sidebar:
         sys_msg = (
             f"Você é um SysAdmin Linux especialista em {os_ver}. Foco em {focus}. "
             "Use comandos Bash/DNF. Responda em PT-BR. "
-            "Sempre que explicar fluxos de rede, docker ou serviços, inclua um bloco de código Mermaid.js "
-            "iniciando com 'graph TD' ou 'graph LR' para ilustrar a arquitetura visualmente."
+            "Sempre inclua um bloco '```mermaid' com 'graph TD' ou 'graph LR' para ilustrar a arquitetura. "
+            "Não use subgraphs a menos que seja estritamente necessário."
         )
     else:
         os_ver = st.selectbox("Versão:", ["Windows Server 2022", "2019", "2016"])
@@ -57,29 +78,27 @@ with st.sidebar:
         sys_msg = (
             f"Você é um Admin Windows especialista em {os_ver}. Foco em {focus}. "
             "Use PowerShell. Responda em PT-BR. "
-            "Sempre que explicar topologias de rede, Hyper-V ou clusters de SQL, inclua um bloco de código "
-            "Mermaid.js iniciando com 'graph TD' ou 'graph LR' para ilustrar a arquitetura visualmente."
+            "Sempre inclua um bloco '```mermaid' com 'graph TD' ou 'graph LR' para ilustrar a arquitetura. "
+            "Foque em componentes do Windows como AD, IIS e Hyper-V."
         )
 
 # --- Interface Principal ---
 st.title(f"Assistente {os_family}")
-st.caption(f"Contexto: {os_ver} | Foco: {focus}")
+st.caption(f"Contexto Ativo: {os_ver} | Paleta: {'Laranja/Oracle' if 'Linux' in os_family else 'Azul/Microsoft'}")
 
 # Mostrar Histórico
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
-        # Se houver código mermaid na mensagem da IA, tenta renderizar
-        if m["role"] == "assistant" and "graph " in m["content"]:
+        if m["role"] == "assistant" and "```mermaid" in m["content"]:
             try:
-                # Extrai o bloco mermaid simples (melhorado em produção com regex)
                 mermaid_code = m["content"].split("```mermaid")[-1].split("```")[0]
-                render_mermaid(mermaid_code)
+                render_mermaid(mermaid_code, os_family)
             except:
                 pass
 
 # Input do Usuário
-if prompt := st.chat_input("Como posso ajudar?"):
+if prompt := st.chat_input("Ex: Como configurar um Proxy Reverso Nginx para Docker?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -104,11 +123,10 @@ if prompt := st.chat_input("Como posso ajudar?"):
             
             resp_container.markdown(full_resp)
             
-            # Se a resposta contém diagrama, renderiza após o texto
-            if "graph " in full_resp:
+            if "```mermaid" in full_resp:
                 try:
                     mermaid_code = full_resp.split("```mermaid")[-1].split("```")[0]
-                    render_mermaid(mermaid_code)
+                    render_mermaid(mermaid_code, os_family)
                 except:
                     pass
                     
@@ -118,4 +136,4 @@ if prompt := st.chat_input("Como posso ajudar?"):
             st.error(f"Erro na IA: {str(e)}")
 
 st.divider()
-st.caption("🚀 OpsGuide v4.0 - Gerando comandos e arquiteturas visuais.")
+st.caption("🚀 OpsGuide v5.0 - Arquiteturas Híbridas Colorizadas.")
