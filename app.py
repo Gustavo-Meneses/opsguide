@@ -4,22 +4,24 @@ import streamlit.components.v1 as components
 
 # --- Configuração de Página ---
 st.set_page_config(
-    page_title="OpsGuide - Architect v5.0",
+    page_title="OpsGuide Architect v6.0",
     page_icon="🖥️",
     layout="wide"
 )
 
-# --- Função para Renderizar Diagramas Mermaid com Paleta Dinâmica ---
+# --- Estilos Customizados ---
+st.markdown("""
+    <style>
+    .stDownloadButton>button { width: 100%; background-color: #2e7d32; color: white; }
+    .stCodeBlock { border-radius: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- Função Mermaid com Paleta Dinâmica ---
 def render_mermaid(code, os_family):
-    # Define cores baseadas no SO
-    if "Linux" in os_family:
-        primary = "#f05a28"  # Laranja Oracle
-        secondary = "#313131"
-        text_color = "#ffffff"
-    else:
-        primary = "#0078d4"  # Azul Microsoft
-        secondary = "#ffffff"
-        text_color = "#000000"
+    primary = "#f05a28" if "Linux" in os_family else "#0078d4"
+    text_color = "#ffffff" if "Linux" in os_family else "#000000"
+    secondary = "#313131" if "Linux" in os_family else "#ffffff"
 
     components.html(
         f"""
@@ -34,10 +36,9 @@ def render_mermaid(code, os_family):
                 themeVariables: {{
                     'primaryColor': '{primary}',
                     'primaryTextColor': '{text_color}',
-                    'primaryBorderColor': '{secondary}',
+                    'primaryBorderColor': '#444',
                     'lineColor': '{primary}',
-                    'secondaryColor': '{secondary}',
-                    'tertiaryColor': '#f4f4f4'
+                    'tertiaryColor': '#222'
                 }}
             }});
         </script>
@@ -45,60 +46,46 @@ def render_mermaid(code, os_family):
         height=450,
     )
 
-# --- Estado da Sessão ---
+# --- Gestão de Estado ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- Segurança: API Key ---
+# --- Segurança ---
 api_key = st.secrets.get("MISTRAL_API_KEY")
 if not api_key:
-    st.error("⛔ Configure a MISTRAL_API_KEY nos Secrets do Streamlit.")
+    st.error("⛔ Configure a MISTRAL_API_KEY nos Secrets.")
     st.stop()
 
 client = Mistral(api_key=api_key)
 
-# --- Sidebar: Filtros de Contexto ---
+# --- Sidebar ---
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    os_family = st.selectbox("Sistema Operacional:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
+    os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     st.divider()
     
     if os_family == "🐧 Linux (Oracle)":
         os_ver = st.selectbox("Versão:", ["Oracle Linux 9", "Oracle Linux 8", "Oracle Linux 7"])
         focus = st.radio("Foco:", ["Sistema/Kernel", "Docker/Portainer", "PostgreSQL"])
-        sys_msg = (
-            f"Você é um SysAdmin Linux especialista em {os_ver}. Foco em {focus}. "
-            "Use comandos Bash/DNF. Responda em PT-BR. "
-            "Sempre inclua um bloco '```mermaid' com 'graph TD' ou 'graph LR' para ilustrar a arquitetura. "
-            "Não use subgraphs a menos que seja estritamente necessário."
-        )
+        ext = ".sh"
+        sys_msg = f"Especialista {os_ver}. Use Bash/DNF. Responda em PT-BR. Use Mermaid.js para diagramas (graph TD/LR)."
     else:
         os_ver = st.selectbox("Versão:", ["Windows Server 2022", "2019", "2016"])
-        focus = st.radio("Foco:", ["PowerShell", "SQL Server", "Hyper-V", "Rede/Firewall"])
-        sys_msg = (
-            f"Você é um Admin Windows especialista em {os_ver}. Foco em {focus}. "
-            "Use PowerShell. Responda em PT-BR. "
-            "Sempre inclua um bloco '```mermaid' com 'graph TD' ou 'graph LR' para ilustrar a arquitetura. "
-            "Foque em componentes do Windows como AD, IIS e Hyper-V."
-        )
+        focus = st.radio("Foco:", ["PowerShell", "SQL Server", "Hyper-V", "AD/Rede"])
+        ext = ".ps1"
+        sys_msg = f"Especialista {os_ver}. Use PowerShell. Responda em PT-BR. Use Mermaid.js para diagramas (graph TD/LR)."
 
-# --- Interface Principal ---
+# --- Chat Principal ---
 st.title(f"Assistente {os_family}")
-st.caption(f"Contexto Ativo: {os_ver} | Paleta: {'Laranja/Oracle' if 'Linux' in os_family else 'Azul/Microsoft'}")
 
-# Mostrar Histórico
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m["role"] == "assistant" and "```mermaid" in m["content"]:
-            try:
-                mermaid_code = m["content"].split("```mermaid")[-1].split("```")[0]
-                render_mermaid(mermaid_code, os_family)
-            except:
-                pass
+            mermaid_code = m["content"].split("```mermaid")[-1].split("```")[0]
+            render_mermaid(mermaid_code, os_family)
 
-# Input do Usuário
-if prompt := st.chat_input("Ex: Como configurar um Proxy Reverso Nginx para Docker?"):
+if prompt := st.chat_input("Ex: Como configurar um Proxy Reverso Nginx?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -110,10 +97,7 @@ if prompt := st.chat_input("Ex: Como configurar um Proxy Reverso Nginx para Dock
         try:
             stream = client.chat.stream(
                 model="mistral-tiny",
-                messages=[
-                    {"role": "system", "content": sys_msg},
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": prompt}]
             )
             
             for chunk in stream:
@@ -123,17 +107,22 @@ if prompt := st.chat_input("Ex: Como configurar um Proxy Reverso Nginx para Dock
             
             resp_container.markdown(full_resp)
             
+            # --- Renderização Visual ---
             if "```mermaid" in full_resp:
-                try:
-                    mermaid_code = full_resp.split("```mermaid")[-1].split("```")[0]
-                    render_mermaid(mermaid_code, os_family)
-                except:
-                    pass
+                mermaid_code = full_resp.split("```mermaid")[-1].split("```")[0]
+                render_mermaid(mermaid_code, os_family)
+            
+            # --- Funcionalidade de Download (Otimização) ---
+            if "```" in full_resp:
+                script_content = full_resp.split("```")[1].split("```")[0] # Pega o primeiro bloco de código
+                st.download_button(
+                    label=f"📥 Baixar Script Automático ({ext})",
+                    data=script_content,
+                    file_name=f"opsguide_script{ext}",
+                    mime="text/plain"
+                )
                     
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
             
         except Exception as e:
-            st.error(f"Erro na IA: {str(e)}")
-
-st.divider()
-st.caption("🚀 OpsGuide v5.0 - Arquiteturas Híbridas Colorizadas.")
+            st.error(f"Erro: {str(e)}")
