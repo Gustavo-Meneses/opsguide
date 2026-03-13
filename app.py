@@ -143,6 +143,12 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                 except:
                     pass
             
-            # Extração segura de código para download
-            try:
-                # Regex corrigida e fechada para evitar SyntaxError
+           # Extração segura de código para download
+try:
+    # Busca conteúdo entre blocos de código markdown ```...```
+    code_match = re.search(r'
+http://googleusercontent.com/immersive_entry_chip/0
+ 
+### O que eu mudei:
+* **Regex completa:** `r'
+http://googleusercontent.com/immersive_entry_chip/1
