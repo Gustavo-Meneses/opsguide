@@ -3,22 +3,30 @@ import re
 import streamlit.components.v1 as components
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v7.5", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v7.6", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Detecção Robusta de Versão da API Mistral ---
+# --- 🛡️ Gestão de Versão Híbrida ---
+# Tenta carregar a biblioteca de forma dinâmica para evitar erros de importação estática
+MISTRAL_MODE = None
+
 try:
-    # Tenta importar SDK v1.x (Nova versão)
-    from mistralai import Mistral
-    MISTRAL_V1 = True
-except ImportError:
-    try:
-        # Tenta importar SDK v0.x (Versão antiga em cache)
+    import mistralai
+    # Verifica se a classe Mistral (v1.x) existe
+    if hasattr(mistralai, "Mistral"):
+        from mistralai import Mistral
+        MISTRAL_MODE = "v1"
+    # Senão, tenta a estrutura antiga (v0.x)
+    elif hasattr(mistralai, "client") and hasattr(mistralai.client, "MistralClient"):
         from mistralai.client import MistralClient
         from mistralai.models.chat_completion import ChatMessage
-        MISTRAL_V1 = False
-    except ImportError as e:
-        st.error(f"🚨 Erro crítico de instalação: {e}")
-        st.stop()
+        MISTRAL_MODE = "v0"
+except Exception:
+    pass
+
+if not MISTRAL_MODE:
+    st.error("🚨 Falha crítica: O ambiente do Streamlit não carregou a SDK da Mistral corretamente.")
+    st.info("Certifique-se de que 'mistralai' está no seu 'requirements.txt' e faça um 'Reboot' no painel 'Manage App'.")
+    st.stop()
 
 st.markdown("""
     <style>
@@ -47,24 +55,25 @@ def render_mermaid(code, os_family):
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 
-# Autenticação
+# Autenticação via Secrets
 api_key = st.secrets.get("MISTRAL_API_KEY")
 if not api_key:
     st.error("⛔ Configure a MISTRAL_API_KEY nos Secrets do Streamlit.")
     st.stop()
 
-# Inicializa o Cliente correto baseado na versão
-if MISTRAL_V1:
-    client = Mistral(api_key=api_key)
-else:
-    client = MistralClient(api_key=api_key)
+# Inicialização do Cliente conforme a versão detectada
+try:
+    if MISTRAL_MODE == "v1":
+        client = Mistral(api_key=api_key)
+    else:
+        client = MistralClient(api_key=api_key)
+except Exception as e:
+    st.error(f"Erro ao inicializar cliente Mistral: {e}")
+    st.stop()
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    if MISTRAL_V1:
-        st.success("Conectado (Mistral SDK v1.x)", icon="✅")
-    else:
-        st.warning("Conectado (Mistral SDK v0.x - Cache)", icon="⚠️")
+    st.caption(f"Versão da Engine: {MISTRAL_MODE}")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -97,8 +106,7 @@ if prompt := st.chat_input("Ex: Como analisar os logs do Nginx?"):
         resp_container = st.empty()
         full_resp = ""
         try:
-            # Lógica adaptável para a versão da API
-            if MISTRAL_V1:
+            if MISTRAL_MODE == "v1":
                 stream = client.chat.stream(
                     model="mistral-tiny", 
                     messages=[{"role":"system","content":sys_msg},{"role":"user","content":prompt}]
@@ -108,7 +116,6 @@ if prompt := st.chat_input("Ex: Como analisar os logs do Nginx?"):
                         full_resp += chunk.data.choices[0].delta.content
                         resp_container.markdown(full_resp + "▌")
             else:
-                # Sintaxe para a versão legada em cache
                 messages = [
                     ChatMessage(role="system", content=sys_msg),
                     ChatMessage(role="user", content=prompt)
