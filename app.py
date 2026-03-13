@@ -6,7 +6,7 @@ import json
 import time
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v8.1", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.2", page_icon="🖥️", layout="wide")
 
 # --- 🛡️ Comunicação Direta via API (Ultra Resiliente) ---
 def call_mistral_api(api_key, system_msg, user_msg):
@@ -73,7 +73,7 @@ if not api_key:
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.success("API Engine: HTTP Stream Resiliente (v8.1)", icon="🚀")
+    st.success("API Engine: Direct HTTP v8.2", icon="🚀")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -114,24 +114,28 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
         response_stream = call_mistral_api(api_key, sys_msg, prompt)
         
         if response_stream:
-            # Processamento de stream linha a linha com tratamento de erro robusto
             for line in response_stream.iter_lines():
                 if line:
                     try:
                         line_text = line.decode('utf-8').strip()
+                        # Verifica se a linha realmente contém dados da API
                         if line_text.startswith("data: "):
-                            data_str = line_text[6:]
-                            if data_str == "[DONE]":
+                            data_content = line_text[6:].strip()
+                            
+                            # Ignora o marcador de fim de stream
+                            if data_content == "[DONE]":
                                 break
                             
-                            data_json = json.loads(data_str)
-                            if 'choices' in data_json and len(data_json['choices']) > 0:
-                                delta = data_json['choices'][0].get('delta', {})
-                                content = delta.get('content', '')
-                                full_resp += content
-                                resp_container.markdown(full_resp + "▌")
-                    except (json.JSONDecodeError, KeyError, Exception):
-                        # Ignora falhas de pacotes incompletos ou malformados durante o stream
+                            # Tenta decodificar o JSON apenas se não estiver vazio
+                            if data_content:
+                                data_json = json.loads(data_content)
+                                if 'choices' in data_json and len(data_json['choices']) > 0:
+                                    delta = data_json['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                    full_resp += content
+                                    resp_container.markdown(full_resp + "▌")
+                    except Exception:
+                        # Ignora silenciosamente erros de pacotes corrompidos para não travar a UI
                         continue
             
             resp_container.markdown(full_resp)
