@@ -6,9 +6,9 @@ import json
 import time
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v8.2", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.3", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Comunicação Direta via API (Ultra Resiliente) ---
+# --- 🛡️ Comunicação Direta via API (Blindagem v8.3) ---
 def call_mistral_api(api_key, system_msg, user_msg):
     url = "https://api.mistral.ai/v1/chat/completions"
     headers = {
@@ -27,10 +27,12 @@ def call_mistral_api(api_key, system_msg, user_msg):
     
     try:
         response = requests.post(url, headers=headers, json=payload, stream=True, timeout=30)
-        response.raise_for_status()
+        if response.status_code != 200:
+            st.error(f"Erro da API Mistral (Status {response.status_code}): {response.text}")
+            return None
         return response
     except Exception as e:
-        st.error(f"Erro na conexão com a API: {e}")
+        st.error(f"Falha na conexão de rede: {e}")
         return None
 
 # --- UI e Estilos ---
@@ -43,7 +45,6 @@ st.markdown("""
 
 def render_mermaid(code, os_family):
     clean_code = code.replace("`", "").strip()
-    # Garante que o código mermaid comece corretamente
     if not clean_code.startswith("graph") and not clean_code.startswith("flowchart"):
         clean_code = "graph TD\n" + clean_code
         
@@ -73,7 +74,7 @@ if not api_key:
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.success("API Engine: Direct HTTP v8.2", icon="🚀")
+    st.success("API Engine: Direct HTTP v8.3", icon="🚀")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -118,24 +119,24 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                 if line:
                     try:
                         line_text = line.decode('utf-8').strip()
-                        # Verifica se a linha realmente contém dados da API
                         if line_text.startswith("data: "):
                             data_content = line_text[6:].strip()
                             
-                            # Ignora o marcador de fim de stream
                             if data_content == "[DONE]":
                                 break
                             
-                            # Tenta decodificar o JSON apenas se não estiver vazio
                             if data_content:
                                 data_json = json.loads(data_content)
+                                # Verificação segura da estrutura do JSON
                                 if 'choices' in data_json and len(data_json['choices']) > 0:
                                     delta = data_json['choices'][0].get('delta', {})
                                     content = delta.get('content', '')
                                     full_resp += content
                                     resp_container.markdown(full_resp + "▌")
-                    except Exception:
-                        # Ignora silenciosamente erros de pacotes corrompidos para não travar a UI
+                                elif 'error' in data_json:
+                                    st.error(f"Erro na resposta da API: {data_json['error']}")
+                    except Exception as e:
+                        # Silencia erros de decodificação de fragmentos, mas permite debug se necessário
                         continue
             
             resp_container.markdown(full_resp)
