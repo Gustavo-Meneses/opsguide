@@ -2,9 +2,10 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
+# --- Configuração de Página ---
+st.set_page_config(page_title="OpsGuide Architect v7.5", page_icon="🖥️", layout="wide")
+
 # --- 🛡️ Detecção Robusta de Versão da API Mistral ---
-# O Streamlit Cloud frequentemente faz cache de versões antigas (0.x).
-# Este bloco garante que o app funcione independente da versão instalada.
 try:
     # Tenta importar SDK v1.x (Nova versão)
     from mistralai import Mistral
@@ -18,9 +19,6 @@ except ImportError:
     except ImportError as e:
         st.error(f"🚨 Erro crítico de instalação: {e}")
         st.stop()
-
-# --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v7.5", page_icon="🖥️", layout="wide")
 
 st.markdown("""
     <style>
@@ -46,7 +44,8 @@ def render_mermaid(code, os_family):
         </script>
         """, height=450)
 
-if "messages" not in st.session_state: st.session_state.messages = []
+if "messages" not in st.session_state: 
+    st.session_state.messages = []
 
 # Autenticação
 api_key = st.secrets.get("MISTRAL_API_KEY")
@@ -95,7 +94,8 @@ if prompt := st.chat_input("Ex: Como analisar os logs do Nginx?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
     with st.chat_message("assistant"):
-        resp_container, full_resp = st.empty(), ""
+        resp_container = st.empty()
+        full_resp = ""
         try:
             # Lógica adaptável para a versão da API
             if MISTRAL_V1:
@@ -125,9 +125,3 @@ if prompt := st.chat_input("Ex: Como analisar os logs do Nginx?"):
                 render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
             
             code_match = re.search(r'
-http://googleusercontent.com/immersive_entry_chip/0
-
-### O que acontece agora?
-Assim que você subir esse código pro GitHub, o Streamlit vai tentar rodar. Como ele ignora o erro de nomenclatura e se adapta ao que ele tem no momento, o aplicativo **vai abrir perfeitamente**. Você verá inclusive um pequeno aviso na barra lateral dizendo qual versão ele conseguiu usar por baixo dos panos!
-
-Faça o commit e aguarde o Streamlit reiniciar. Quer me avisar assim que a interface carregar com sucesso para validarmos as respostas da IA?
