@@ -4,9 +4,9 @@ import streamlit.components.v1 as components
 import re
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v7.1", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v7.2", page_icon="🖥️", layout="wide")
 
-# Estilos CSS
+# Estilos CSS para botões e blocos de código
 st.markdown("""
     <style>
     .stDownloadButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 8px; }
@@ -15,6 +15,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 def render_mermaid(code, os_family):
+    # Limpeza para evitar Syntax Error nos diagramas
     clean_code = code.replace("`", "").strip()
     primary = "#f05a28" if "Linux" in os_family else "#0078d4"
     text_color = "#ffffff" if "Linux" in os_family else "#000000"
@@ -29,10 +30,10 @@ def render_mermaid(code, os_family):
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Segurança
+# --- Gestão de Secrets ---
 api_key = st.secrets.get("MISTRAL_API_KEY")
 if not api_key:
-    st.error("⛔ MISTRAL_API_KEY não encontrada nos Secrets.")
+    st.error("⛔ MISTRAL_API_KEY não encontrada nos Secrets do Streamlit.")
     st.stop()
 
 client = Mistral(api_key=api_key)
@@ -51,18 +52,20 @@ with st.sidebar:
     
     st.divider()
     if st.button("🚨 Modo de Emergência (DR)", use_container_width=True):
-        st.session_state.messages.append({"role": "user", "content": "Comandos de emergência e DR para este SO."})
+        st.session_state.messages.append({"role": "user", "content": "Apresente comandos de emergência e troubleshooting para este ambiente."})
 
-sys_msg = f"Especialista em {os_ver}. Foco: {focus}. PT-BR. Use Mermaid.js (graph TD/LR) para diagramas. Sem caracteres especiais nos nós."
+sys_msg = f"Especialista em {os_ver}. Foco: {focus}. Responda em PT-BR. Use Mermaid.js (graph TD/LR) para diagramas técnicos."
 
 st.title(f"Assistente {os_family}")
 
+# Mostrar histórico
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m["role"] == "assistant" and "```mermaid" in m["content"]:
             render_mermaid(m["content"].split("```mermaid")[-1].split("```")[0], os_family)
 
+# Input de Chat
 if prompt := st.chat_input("Como posso ajudar?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
@@ -75,12 +78,15 @@ if prompt := st.chat_input("Como posso ajudar?"):
                     full_resp += chunk.data.choices[0].delta.content
                     resp_container.markdown(full_resp + "▌")
             resp_container.markdown(full_resp)
-            if "```mermaid" in full_resp: render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
             
-            # Extração de código aprimorada
+            # Renderização de Diagrama
+            if "```mermaid" in full_resp:
+                render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+            
+            # Botão de Download para o código gerado
             code_match = re.search(r'```(?:\w+)?\n(.*?)\n```', full_resp, re.DOTALL)
             if code_match:
-                st.download_button(label=f"📥 Baixar Script ({ext})", data=code_match.group(1), file_name=f"opsguide_script{ext}")
+                st.download_button(label=f"📥 Baixar Script Automático ({ext})", data=code_match.group(1), file_name=f"opsguide_script{ext}")
             
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
-        except Exception as e: st.error(f"Erro: {e}")
+        except Exception as e: st.error(f"Erro na comunicação com a IA: {e}")
