@@ -1,33 +1,40 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
+import requests
+import json
+import time
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v7.6", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.0", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Gestão de Versão Híbrida ---
-# Tenta carregar a biblioteca de forma dinâmica para evitar erros de importação estática
-MISTRAL_MODE = None
+# --- 🛡️ Comunicação Direta via API (Sem dependência de SDK) ---
+# Esta abordagem elimina erros de "ImportError" ou "AttributeError" da biblioteca mistralai
+def call_mistral_api(api_key, system_msg, user_msg):
+    url = "https://api.mistral.ai/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    payload = {
+        "model": "mistral-tiny",
+        "messages": [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg}
+        ],
+        "stream": True
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, stream=True, timeout=30)
+        response.raise_for_status()
+        return response
+    except Exception as e:
+        st.error(f"Erro na conexão com a API: {e}")
+        return None
 
-try:
-    import mistralai
-    # Verifica se a classe Mistral (v1.x) existe
-    if hasattr(mistralai, "Mistral"):
-        from mistralai import Mistral
-        MISTRAL_MODE = "v1"
-    # Senão, tenta a estrutura antiga (v0.x)
-    elif hasattr(mistralai, "client") and hasattr(mistralai.client, "MistralClient"):
-        from mistralai.client import MistralClient
-        from mistralai.models.chat_completion import ChatMessage
-        MISTRAL_MODE = "v0"
-except Exception:
-    pass
-
-if not MISTRAL_MODE:
-    st.error("🚨 Falha crítica: O ambiente do Streamlit não carregou a SDK da Mistral corretamente.")
-    st.info("Certifique-se de que 'mistralai' está no seu 'requirements.txt' e faça um 'Reboot' no painel 'Manage App'.")
-    st.stop()
-
+# --- UI e Estilos ---
 st.markdown("""
     <style>
     .stDownloadButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; }
@@ -37,6 +44,10 @@ st.markdown("""
 
 def render_mermaid(code, os_family):
     clean_code = code.replace("`", "").strip()
+    # Garante que o código mermaid comece corretamente
+    if not clean_code.startswith("graph") and not clean_code.startswith("flowchart"):
+        clean_code = "graph TD\n" + clean_code
+        
     primary = "#f05a28" if "Linux" in os_family else "#0078d4"
     text_color = "#ffffff" if "Linux" in os_family else "#000000"
     components.html(
@@ -58,22 +69,12 @@ if "messages" not in st.session_state:
 # Autenticação via Secrets
 api_key = st.secrets.get("MISTRAL_API_KEY")
 if not api_key:
-    st.error("⛔ Configure a MISTRAL_API_KEY nos Secrets do Streamlit.")
-    st.stop()
-
-# Inicialização do Cliente conforme a versão detectada
-try:
-    if MISTRAL_MODE == "v1":
-        client = Mistral(api_key=api_key)
-    else:
-        client = MistralClient(api_key=api_key)
-except Exception as e:
-    st.error(f"Erro ao inicializar cliente Mistral: {e}")
+    st.error("⛔ Configure a MISTRAL_API_KEY nos Secrets do Streamlit (Settings > Secrets).")
     st.stop()
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.caption(f"Versão da Engine: {MISTRAL_MODE}")
+    st.success("API Engine: Direct HTTP (v8.0)", icon="🚀")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -87,48 +88,54 @@ with st.sidebar:
     
     st.divider()
     if st.button("🚨 MODO DE EMERGÊNCIA (DR)", use_container_width=True):
-        st.session_state.messages.append({"role": "user", "content": "Apresente comandos de emergência e troubleshooting."})
+        st.session_state.messages.append({"role": "user", "content": "Apresente comandos de emergência e troubleshooting críticos para este ambiente."})
 
-sys_msg = f"Especialista em {os_ver}. Foco: {focus}. PT-BR. Use Mermaid.js (graph TD/LR) para diagramas técnicos."
+sys_msg = f"Você é um especialista em {os_ver}. Foco: {focus}. Responda em PT-BR. Sempre use Mermaid.js (graph TD) para diagramas técnicos quando explicar processos."
 
 st.title(f"Assistente {os_family}")
 
+# Exibir histórico
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m["role"] == "assistant" and "```mermaid" in m["content"]:
-            render_mermaid(m["content"].split("```mermaid")[-1].split("```")[0], os_family)
+            try:
+                render_mermaid(m["content"].split("```mermaid")[-1].split("```")[0], os_family)
+            except: pass
 
-if prompt := st.chat_input("Ex: Como analisar os logs do Nginx?"):
+# Input do Usuário
+if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
+    
     with st.chat_message("assistant"):
         resp_container = st.empty()
         full_resp = ""
-        try:
-            if MISTRAL_MODE == "v1":
-                stream = client.chat.stream(
-                    model="mistral-tiny", 
-                    messages=[{"role":"system","content":sys_msg},{"role":"user","content":prompt}]
-                )
-                for chunk in stream:
-                    if chunk.data.choices[0].delta.content:
-                        full_resp += chunk.data.choices[0].delta.content
-                        resp_container.markdown(full_resp + "▌")
-            else:
-                messages = [
-                    ChatMessage(role="system", content=sys_msg),
-                    ChatMessage(role="user", content=prompt)
-                ]
-                stream = client.chat_stream(model="mistral-tiny", messages=messages)
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        full_resp += chunk.choices[0].delta.content
-                        resp_container.markdown(full_resp + "▌")
+        
+        response_stream = call_mistral_api(api_key, sys_msg, prompt)
+        
+        if response_stream:
+            for line in response_stream.iter_lines():
+                if line:
+                    line_text = line.decode('utf-8')
+                    if line_text.startswith("data: "):
+                        data_str = line_text[6:]
+                        if data_str.strip() == "[DONE]":
+                            break
+                        try:
+                            data_json = json.loads(data_str)
+                            content = data_json['choices'][0]['delta'].get('content', '')
+                            full_resp += content
+                            resp_container.markdown(full_resp + "▌")
+                        except:
+                            continue
             
             resp_container.markdown(full_resp)
             
+            # Processamento Pós-Resposta
             if "```mermaid" in full_resp:
-                render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+                try:
+                    render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+                except: pass
             
             code_match = re.search(r'
