@@ -6,9 +6,9 @@ import json
 import time
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v8.4", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.5", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Comunicação Direta via API (Blindagem v8.4) ---
+# --- 🛡️ Comunicação Direta via API (Blindagem v8.5) ---
 def call_mistral_api(api_key, system_msg, user_msg):
     url = "https://api.mistral.ai/v1/chat/completions"
     headers = {
@@ -77,7 +77,7 @@ if not api_key:
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.success("API Engine: Direct HTTP v8.4", icon="🚀")
+    st.success("API Engine: Direct HTTP v8.5", icon="🚀")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -138,9 +138,12 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
             
             # Renderização de Diagramas
             if "```mermaid" in full_resp:
-                render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+                try:
+                    render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+                except:
+                    pass
             
             # Extração segura de código para download
             try:
-                # Regex mais flexível para capturar blocos de código
-                code_match = re.search(r'
+                # Regex corrigida e fechada para evitar SyntaxError
+                code_match = re.search(r'')
