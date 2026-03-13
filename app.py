@@ -146,4 +146,4 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
             # Extração segura de código para download
             try:
                 # Regex corrigida e fechada para evitar SyntaxError
-                code_match = re.search(r'')
+                code_match = re.search
