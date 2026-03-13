@@ -148,18 +148,18 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                     pass
  
             # Extração segura de código para download
-            try:
-                # Regex corrigida para capturar o primeiro bloco de código encontrado
-                code_match = re.search(r'
+           try:
+    # Captura blocos de código ```codigo```
+    code_match = re.search(r"```(?:\w+)?\n(.*?)```", full_resp, re.S)
 
-            if code_match:
-                    extracted_code = code_match.group(1)
-                    st.download_button(
-                        label=f"💾 Baixar Script ({ext})",
-                        data=extracted_code,
-                        file_name=f"script_gerado{ext}",
-                        mime="text/plain"
-                    )
-            except Exception as e:
-                st.warning(f"Não foi possível gerar o botão de download: {e}")
- 
+    if code_match:
+        extracted_code = code_match.group(1)
+
+        st.download_button(
+            label=f"💾 Baixar Script ({ext})",
+            data=extracted_code,
+            file_name=f"script_gerado{ext}",
+            mime="text/plain"
+        )
+except Exception as e:
+    st.warning(f"Não foi possível gerar o botão de download: {e}")
