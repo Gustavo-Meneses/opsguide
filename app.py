@@ -6,9 +6,9 @@ import json
 import time
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v8.3", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.4", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Comunicação Direta via API (Blindagem v8.3) ---
+# --- 🛡️ Comunicação Direta via API (Blindagem v8.4) ---
 def call_mistral_api(api_key, system_msg, user_msg):
     url = "https://api.mistral.ai/v1/chat/completions"
     headers = {
@@ -44,24 +44,27 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 def render_mermaid(code, os_family):
-    clean_code = code.replace("`", "").strip()
-    if not clean_code.startswith("graph") and not clean_code.startswith("flowchart"):
-        clean_code = "graph TD\n" + clean_code
-        
-    primary = "#f05a28" if "Linux" in os_family else "#0078d4"
-    text_color = "#ffffff" if "Linux" in os_family else "#000000"
-    components.html(
-        f"""
-        <div class="mermaid" style="display: flex; justify-content: center;">{clean_code}</div>
-        <script type="module">
-            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-            mermaid.initialize({{ 
-                startOnLoad: true, 
-                theme: 'base', 
-                themeVariables: {{ 'primaryColor': '{primary}', 'primaryTextColor': '{text_color}', 'lineColor': '{primary}' }} 
-            }});
-        </script>
-        """, height=450)
+    try:
+        clean_code = code.replace("`", "").strip()
+        if not clean_code.startswith("graph") and not clean_code.startswith("flowchart"):
+            clean_code = "graph TD\n" + clean_code
+            
+        primary = "#f05a28" if "Linux" in os_family else "#0078d4"
+        text_color = "#ffffff" if "Linux" in os_family else "#000000"
+        components.html(
+            f"""
+            <div class="mermaid" style="display: flex; justify-content: center;">{clean_code}</div>
+            <script type="module">
+                import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                mermaid.initialize({{ 
+                    startOnLoad: true, 
+                    theme: 'base', 
+                    themeVariables: {{ 'primaryColor': '{primary}', 'primaryTextColor': '{text_color}', 'lineColor': '{primary}' }} 
+                }});
+            </script>
+            """, height=450)
+    except:
+        pass
 
 if "messages" not in st.session_state: 
     st.session_state.messages = []
@@ -74,7 +77,7 @@ if not api_key:
 
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.success("API Engine: Direct HTTP v8.3", icon="🚀")
+    st.success("API Engine: Direct HTTP v8.4", icon="🚀")
         
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -99,9 +102,7 @@ for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
         if m["role"] == "assistant" and "```mermaid" in m["content"]:
-            try:
-                render_mermaid(m["content"].split("```mermaid")[-1].split("```")[0], os_family)
-            except: pass
+            render_mermaid(m["content"].split("```mermaid")[-1].split("```")[0], os_family)
 
 # Input do Usuário
 if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
@@ -121,30 +122,25 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                         line_text = line.decode('utf-8').strip()
                         if line_text.startswith("data: "):
                             data_content = line_text[6:].strip()
-                            
                             if data_content == "[DONE]":
                                 break
-                            
                             if data_content:
                                 data_json = json.loads(data_content)
-                                # Verificação segura da estrutura do JSON
                                 if 'choices' in data_json and len(data_json['choices']) > 0:
                                     delta = data_json['choices'][0].get('delta', {})
                                     content = delta.get('content', '')
                                     full_resp += content
                                     resp_container.markdown(full_resp + "▌")
-                                elif 'error' in data_json:
-                                    st.error(f"Erro na resposta da API: {data_json['error']}")
-                    except Exception as e:
-                        # Silencia erros de decodificação de fragmentos, mas permite debug se necessário
+                    except:
                         continue
             
             resp_container.markdown(full_resp)
             
-            # Processamento Pós-Resposta
+            # Renderização de Diagramas
             if "```mermaid" in full_resp:
-                try:
-                    render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
-                except: pass
+                render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
             
-            code_match = re.search(r'
+            # Extração segura de código para download
+            try:
+                # Regex mais flexível para capturar blocos de código
+                code_match = re.search(r'
