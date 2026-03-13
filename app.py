@@ -138,28 +138,31 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                     except:
                         continue
  
-            resp_container.markdown(full_resp)
- 
+                        resp_container.markdown(full_resp)
+
             # Renderização de Diagramas
             if "```mermaid" in full_resp:
                 try:
-                    render_mermaid(full_resp.split("```mermaid")[-1].split("```")[0], os_family)
+                    render_mermaid(
+                        full_resp.split("```mermaid")[-1].split("```")[0],
+                        os_family
+                    )
                 except:
                     pass
- 
+
             # Extração segura de código para download
-           try:
-    # Captura blocos de código ```codigo```
-    code_match = re.search(r"```(?:\w+)?\n(.*?)```", full_resp, re.S)
+            try:
+                code_match = re.search(r"```(?:\w+)?\n(.*?)```", full_resp, re.S)
 
-    if code_match:
-        extracted_code = code_match.group(1)
+                if code_match:
+                    extracted_code = code_match.group(1)
 
-        st.download_button(
-            label=f"💾 Baixar Script ({ext})",
-            data=extracted_code,
-            file_name=f"script_gerado{ext}",
-            mime="text/plain"
-        )
-except Exception as e:
-    st.warning(f"Não foi possível gerar o botão de download: {e}")
+                    st.download_button(
+                        label=f"💾 Baixar Script ({ext})",
+                        data=extracted_code,
+                        file_name=f"script_gerado{ext}",
+                        mime="text/plain"
+                    )
+
+            except Exception as e:
+                st.warning(f"Não foi possível gerar o botão de download: {e}")
