@@ -5,9 +5,9 @@ import requests
 import json
 
 # --- Configuração de Página ---
-st.set_page_config(page_title="OpsGuide Architect v8.6", page_icon="🖥️", layout="wide")
+st.set_page_config(page_title="OpsGuide Architect v8.7", page_icon="🖥️", layout="wide")
 
-# --- 🛡️ Comunicação Direta via API (Blindagem v8.6) ---
+# --- 🛡️ Comunicação Direta via API ---
 def call_mistral_api(api_key, system_msg, messages):
     """
     Envia o histórico completo de mensagens para a API da Mistral com streaming.
@@ -19,11 +19,10 @@ def call_mistral_api(api_key, system_msg, messages):
         "Authorization": f"Bearer {api_key}"
     }
 
-    # Monta o histórico: system prompt + todas as mensagens anteriores
     api_messages = [{"role": "system", "content": system_msg}] + messages
 
     payload = {
-        "model": "mistral-small-latest",  # FIX: mistral-tiny foi descontinuado
+        "model": "mistral-small-latest",
         "messages": api_messages,
         "stream": True
     }
@@ -42,8 +41,23 @@ def call_mistral_api(api_key, system_msg, messages):
 # --- UI e Estilos ---
 st.markdown("""
 <style>
-.stDownloadButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; }
-.stCodeBlock { border-radius: 10px; border-left: 5px solid #f05a28; }
+.stDownloadButton>button {
+    width: 100%;
+    background-color: #2e7d32;
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+}
+.stCodeBlock {
+    border-radius: 10px;
+    border-left: 5px solid #f05a28;
+}
+div[data-testid="stSidebarContent"] .stButton:last-of-type > button {
+    background-color: #b71c1c;
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,7 +79,11 @@ def render_mermaid(code, os_family):
             mermaid.initialize({{
                 startOnLoad: true,
                 theme: 'base',
-                themeVariables: {{ 'primaryColor': '{primary}', 'primaryTextColor': '{text_color}', 'lineColor': '{primary}' }}
+                themeVariables: {{
+                    'primaryColor': '{primary}',
+                    'primaryTextColor': '{text_color}',
+                    'lineColor': '{primary}'
+                }}
             }});
             </script>
             """, height=450)
@@ -77,6 +95,10 @@ def render_mermaid(code, os_family):
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# FIX: Flag de disparo único para o botão de emergência
+if "emergency_triggered" not in st.session_state:
+    st.session_state.emergency_triggered = False
+
 # --- Autenticação via Secrets ---
 api_key = st.secrets.get("MISTRAL_API_KEY")
 if not api_key:
@@ -86,7 +108,7 @@ if not api_key:
 # --- Sidebar ---
 with st.sidebar:
     st.title("🖥️ OpsGuide Hub")
-    st.success("API Engine: Direct HTTP v8.6", icon="🚀")
+    st.success("API Engine: Direct HTTP v8.7", icon="🚀")
 
     os_family = st.selectbox("Plataforma:", ["🐧 Linux (Oracle)", "🪟 Windows Server"])
     if os_family == "🐧 Linux (Oracle)":
@@ -100,15 +122,14 @@ with st.sidebar:
 
     st.divider()
 
-    # FIX: Botão de emergência agora verifica duplicatas antes de inserir
+    # FIX: Usa flag de estado para garantir disparo único sem rerun imediato
     if st.button("🚨 MODO DE EMERGÊNCIA (DR)", use_container_width=True):
-        emergency_msg = "Apresente comandos de emergência e troubleshooting críticos para este ambiente."
-        if not st.session_state.messages or st.session_state.messages[-1]["content"] != emergency_msg:
-            st.session_state.messages.append({"role": "user", "content": emergency_msg})
-            st.rerun()
+        st.session_state.emergency_triggered = True
 
+    # Botão de limpar com estilo vermelho (via CSS acima)
     if st.button("🗑️ Limpar Histórico", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.emergency_triggered = False
         st.rerun()
 
 # --- System Prompt Dinâmico ---
@@ -132,17 +153,27 @@ for m in st.session_state.messages:
             except Exception:
                 pass
 
-# --- Input do Usuário ---
-if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# --- Resolução da mensagem a processar ---
+# Prioridade: emergência (flag) > input do usuário
+pending_prompt = None
+
+if st.session_state.emergency_triggered:
+    emergency_msg = "Apresente comandos de emergência e troubleshooting críticos para este ambiente."
+    st.session_state.emergency_triggered = False  # FIX: reseta flag ANTES de processar
+    pending_prompt = emergency_msg
+elif prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
+    pending_prompt = prompt
+
+# --- Processamento da Mensagem ---
+if pending_prompt:
+    st.session_state.messages.append({"role": "user", "content": pending_prompt})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(pending_prompt)
 
     with st.chat_message("assistant"):
         resp_container = st.empty()
         full_resp = ""
 
-        # FIX: Passa o histórico completo para manter contexto multi-turno
         response_stream = call_mistral_api(api_key, sys_msg, st.session_state.messages)
 
         if response_stream:
@@ -164,7 +195,7 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                     except Exception:
                         continue
 
-            # FIX: Renderização e download FORA do loop (indentação corrigida)
+            # Renderização final — FORA do loop
             resp_container.markdown(full_resp)
 
             # Renderização de Diagramas Mermaid
@@ -177,7 +208,7 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
                 except Exception:
                     pass
 
-            # Extração segura de código para download
+            # Extração de código para download
             try:
                 code_match = re.search(r"```(?:\w+)?\n(.*?)```", full_resp, re.S)
                 if code_match:
@@ -191,6 +222,6 @@ if prompt := st.chat_input("Como posso ajudar na sua infraestrutura?"):
             except Exception as e:
                 st.warning(f"Não foi possível gerar o botão de download: {e}")
 
-        # FIX: Salva a resposta do assistente no histórico
+        # Salva resposta do assistente no histórico
         if full_resp:
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
