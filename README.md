@@ -1,4 +1,4 @@
-# 🖥️ OpsGuide Architect v8.5
+# 🖥️ OpsGuide Architect v8.6
 
 Assistente DevOps interativo desenvolvido com **Streamlit** que utiliza **IA (Mistral API)** para ajudar administradores de sistemas a resolver problemas, gerar scripts e visualizar arquiteturas técnicas através de **diagramas Mermaid**.
 
@@ -6,56 +6,58 @@ O objetivo do projeto é fornecer um **copiloto para operações de infraestrutu
 
 ---
 
-# 🚀 Funcionalidades
+## 📋 Changelog
+
+### v8.6 — Correções críticas
+- ✅ **Bug de indentação corrigido** — renderização de diagramas e botão de download agora executam corretamente após o fim do streaming
+- ✅ **Histórico persistido** — respostas do assistente são salvas em `st.session_state`, mantendo o contexto entre turnos
+- ✅ **Contexto multi-turno** — histórico completo é enviado à API a cada requisição, permitindo conversas coerentes
+- ✅ **Modelo atualizado** — `mistral-tiny` (descontinuado) substituído por `mistral-small-latest`
+- ✅ **Botão de emergência com proteção** — evita inserção duplicada de mensagens ao clicar repetidamente
+- ✅ **Botão de limpar histórico** — nova opção na sidebar para reiniciar a conversa
+- ✅ **Timeout aumentado** — de 30s para 60s para respostas mais longas
+
+---
+
+## 🚀 Funcionalidades
 
 ### 🤖 Assistente de Infraestrutura
 
-* Chat interativo com IA especializada em ambientes de servidores.
-* Respostas em **Português (PT-BR)**.
-* Contexto ajustado automaticamente conforme plataforma selecionada.
+- Chat interativo com IA especializada em ambientes de servidores
+- Respostas em **Português (PT-BR)**
+- Contexto ajustado automaticamente conforme plataforma selecionada
+- **Memória de conversa** — a IA lembra das mensagens anteriores dentro da sessão
 
 ### 🐧 Suporte a Linux
 
 Ambientes suportados:
-
-* Oracle Linux 9
-* Oracle Linux 8
-* Oracle Linux 7
+- Oracle Linux 9
+- Oracle Linux 8
+- Oracle Linux 7
 
 Focos técnicos:
+- Sistema / Kernel
+- Docker / Portainer
+- PostgreSQL
 
-* Sistema / Kernel
-* Docker / Portainer
-* PostgreSQL
-
-Scripts gerados em:
-
-```
-.sh
-```
+Scripts gerados em `.sh`
 
 ---
 
 ### 🪟 Suporte a Windows Server
 
 Ambientes suportados:
-
-* Windows Server 2022
-* Windows Server 2019
-* Windows Server 2016
+- Windows Server 2022
+- Windows Server 2019
+- Windows Server 2016
 
 Focos técnicos:
+- PowerShell
+- SQL Server
+- Hyper-V
+- Active Directory / Rede
 
-* PowerShell
-* SQL Server
-* Hyper-V
-* Active Directory / Rede
-
-Scripts gerados em:
-
-```
-.ps1
-```
+Scripts gerados em `.ps1`
 
 ---
 
@@ -85,61 +87,59 @@ systemctl restart docker
 ````
 
 O sistema automaticamente:
-
-* Detecta o código
-* Extrai o conteúdo
-* Gera um botão para download
+- Detecta o código
+- Extrai o conteúdo
+- Gera um botão para download
 
 ---
 
 ### 🚨 Modo de Emergência (Disaster Recovery)
 
-Botão especial na interface que solicita à IA:
-
-> comandos críticos de diagnóstico e recuperação para o ambiente selecionado.
+Botão especial na interface que solicita à IA comandos críticos de diagnóstico e recuperação para o ambiente selecionado.
 
 Ideal para:
+- Incidentes de produção
+- Troubleshooting rápido
+- Resposta a falhas de infraestrutura
 
-* incidentes de produção
-* troubleshooting rápido
-* resposta a falhas de infraestrutura
+> **v8.6:** Proteção contra cliques duplicados adicionada.
 
 ---
 
-# 🧠 Arquitetura da Aplicação
+## 🧠 Arquitetura da Aplicação
 
 ```
 Streamlit UI
      │
-     │
+     │ session_state (histórico completo)
      ▼
 OpsGuide App
      │
-     │ HTTP API
+     │ HTTP API (streaming)
      ▼
-Mistral AI (chat completions)
+Mistral AI — mistral-small-latest
      │
      ▼
 Resposta com:
- • explicação técnica
- • scripts
+ • explicação técnica (PT-BR)
+ • scripts (.sh / .ps1)
  • diagramas Mermaid
 ```
 
 ---
 
-# 🛠️ Tecnologias Utilizadas
+## 🛠️ Tecnologias Utilizadas
 
-* **Python**
-* **Streamlit**
-* **Mistral AI API**
-* **Mermaid.js**
-* **Requests**
-* **Regex Parsing**
+- **Python 3.10+**
+- **Streamlit**
+- **Mistral AI API** (`mistral-small-latest`)
+- **Mermaid.js**
+- **Requests**
+- **Regex Parsing**
 
 ---
 
-# 📦 Instalação
+## 📦 Instalação
 
 Clone o repositório:
 
@@ -156,9 +156,9 @@ pip install -r requirements.txt
 
 ---
 
-# 🔑 Configuração da API
+## 🔑 Configuração da API
 
-Crie um arquivo de secrets do Streamlit:
+Crie o arquivo de secrets do Streamlit:
 
 ```
 .streamlit/secrets.toml
@@ -172,9 +172,7 @@ MISTRAL_API_KEY="SUA_API_KEY_AQUI"
 
 ---
 
-# ▶️ Executando a aplicação
-
-Execute:
+## ▶️ Executando a aplicação
 
 ```bash
 streamlit run app.py
@@ -184,86 +182,87 @@ A interface abrirá automaticamente no navegador.
 
 ---
 
-# 🖥️ Interface
+## 🖥️ Interface
 
-A interface permite selecionar:
+A sidebar permite selecionar:
+- **Plataforma** (Linux / Windows Server)
+- **Versão** do sistema operacional
+- **Área de foco** técnico
+- **Modo de Emergência DR**
+- **Limpar Histórico** (novo em v8.6)
 
-* Plataforma
-* Versão do sistema operacional
-* Área de foco técnico
-
-Isso ajusta automaticamente o **prompt enviado para a IA**.
+Todas as seleções ajustam automaticamente o prompt enviado para a IA.
 
 ---
 
-# 📁 Estrutura do Projeto
+## 📁 Estrutura do Projeto
 
 ```
-opsguide-architect
+opsguide-architect/
 │
 ├── app.py
 ├── README.md
 ├── requirements.txt
 │
-└── .streamlit
+└── .streamlit/
     └── secrets.toml
 ```
 
 ---
 
-# 🔐 Segurança
+## 📄 requirements.txt
+
+```
+streamlit>=1.32.0
+requests>=2.31.0
+```
+
+---
+
+## 🔐 Segurança
 
 A comunicação com a IA é feita via **HTTP direto para a API da Mistral**, sem bibliotecas intermediárias.
 
 Características:
-
-* Streaming de resposta
-* Timeout de segurança
-* Tratamento de erros de rede
-* Validação de status da API
-
----
-
-# 📈 Possíveis Melhorias Futuras
-
-* Upload de **logs para análise automática**
-* Integração com **Kubernetes**
-* Diagnóstico automático de infraestrutura
-* Geração de **Runbooks DevOps**
-* Suporte a **Terraform / Ansible**
-* Histórico persistente de conversas
-* Exportação de diagramas
+- Streaming de resposta token a token
+- Timeout de segurança (60s)
+- Tratamento de erros de rede
+- Validação de status HTTP da API
+- API Key nunca exposta no código-fonte
 
 ---
 
-# 👨‍💻 Autor
+## 📈 Possíveis Melhorias Futuras
+
+- Upload de **logs para análise automática**
+- Integração com **Kubernetes**
+- Diagnóstico automático de infraestrutura
+- Geração de **Runbooks DevOps**
+- Suporte a **Terraform / Ansible**
+- Histórico persistente entre sessões (banco de dados)
+- Exportação de diagramas em PNG/SVG
+- Suporte a múltiplos modelos de IA
+
+---
+
+## 👨‍💻 Autor
 
 Projeto criado para auxiliar **operações de infraestrutura e DevOps** através de IA aplicada à administração de sistemas.
 
 ---
 
-# 📜 Licença
+## 📜 Licença
 
 Este projeto está licenciado sob a licença **MIT**.
 
 ---
 
-# ⭐ Contribuições
+## ⭐ Contribuições
 
-Pull requests são bem-vindos.
-
-Se você trabalha com:
-
-* DevOps
-* SRE
-* Infraestrutura
-* Cloud
-* Automação
-
-sinta-se à vontade para contribuir com melhorias.
+Pull requests são bem-vindos. Se você trabalha com DevOps, SRE, Infraestrutura, Cloud ou Automação, sinta-se à vontade para contribuir.
 
 ---
 
-# 🚀 OpsGuide
+## 🚀 OpsGuide
 
 Um **copiloto de infraestrutura inteligente** para administradores de sistemas.
