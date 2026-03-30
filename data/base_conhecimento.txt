@@ -1,0 +1,19 @@
+Docker troubleshooting:
+- Verificar containers: docker ps -a
+- Ver logs: docker logs <container>
+- Reiniciar serviço: systemctl restart docker
+
+PostgreSQL:
+- Status: systemctl status postgresql
+- Conectar: psql -U postgres
+- Ver conexões: SELECT * FROM pg_stat_activity;
+
+Linux diagnóstico:
+- CPU: top
+- Memória: free -h
+- Disco: df -h
+
+Windows PowerShell:
+- Processos: Get-Process
+- Serviços: Get-Service
+- Rede: ipconfig /all
