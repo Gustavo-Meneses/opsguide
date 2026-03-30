@@ -1,67 +1,27 @@
-import requests
-import streamlit as st
-import json
+import os
 
-def call_mistral_api(system_msg, messages):
-    api_key = st.secrets.get("MISTRAL_API_KEY")
+def load_knowledge_base(path="data/base_conhecimento.txt"):
+    if not os.path.exists(path):
+        return []
 
-    url = "https://api.mistral.ai/v1/chat/completions"
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
 
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-
-    payload = {
-        "model": "mistral-small-latest",
-        "messages": [{"role": "system", "content": system_msg}] + messages,
-        "stream": True
-    }
-
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            stream=True,
-            timeout=60
-        )
-
-        if response.status_code != 200:
-            st.error(f"Erro da API: {response.text}")
-            return None
-
-        return response
-
-    except Exception as e:
-        st.error(f"Erro de conexão: {e}")
-        return None
+    # separa por blocos
+    chunks = content.split("\n\n")
+    return [c.strip() for c in chunks if c.strip()]
 
 
-def stream_response(response):
-    full_resp = ""
+def simple_similarity_search(query, knowledge_base, top_k=3):
+    query_words = set(query.lower().split())
 
-    for line in response.iter_lines():
-        if line:
-            try:
-                line_text = line.decode("utf-8").strip()
+    scored = []
 
-                if line_text.startswith("data: "):
-                    data = line_text[6:].strip()
+    for chunk in knowledge_base:
+        chunk_words = set(chunk.lower().split())
+        score = len(query_words & chunk_words)
+        scored.append((score, chunk))
 
-                    if data == "[DONE]":
-                        break
+    scored.sort(reverse=True, key=lambda x: x[0])
 
-                    data_json = json.loads(data)
-
-                    delta = data_json["choices"][0].get("delta", {})
-                    content = delta.get("content", "")
-
-                    full_resp += content
-                    yield full_resp
-
-            except:
-                continue
-
-    return full_resp
+    return [chunk for score, chunk in scored[:top_k] if score > 0]
