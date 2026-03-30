@@ -1,4 +1,4 @@
-# 🖥️ OpsGuide Architect v8.7
+# 🖥️ OpsGuide Architect v9.0
 
 Assistente DevOps interativo desenvolvido com **Streamlit** que utiliza **IA (Mistral API)** para ajudar administradores de sistemas a resolver problemas, gerar scripts e visualizar arquiteturas técnicas através de **diagramas Mermaid**.
 
@@ -7,6 +7,14 @@ O objetivo do projeto é fornecer um **copiloto para operações de infraestrutu
 ---
 
 ## 📋 Changelog
+
+### v9.0 — Arquitetura modular + RAG
+- ✅ **Módulo `core/llm.py`** — chamada à API Mistral e streaming isolados do `app.py`
+- ✅ **Módulo `core/rag.py`** — sistema RAG com busca por similaridade léxica sobre base de conhecimento interna
+- ✅ **Módulo `core/parser.py`** — extração de código e diagramas Mermaid desacoplada do `app.py`
+- ✅ **Base de conhecimento em `data/base_conhecimento.txt`** — chunks separados por linha em branco, carregados uma vez por sessão
+- ✅ **RAG com fallback seguro** — se o arquivo não existir ou não houver contexto relevante, o prompt original é enviado sem alteração
+- ✅ **Indicador de KB na sidebar** — exibe quantos chunks foram carregados ou avisa se a base está vazia
 
 ### v8.7 — Correções de UX e estado
 - ✅ **Botão de Limpar Histórico** — visível na sidebar com estilo vermelho destacado
@@ -30,6 +38,7 @@ O objetivo do projeto é fornecer um **copiloto para operações de infraestrutu
 - Respostas em **Português (PT-BR)**
 - Contexto ajustado automaticamente conforme plataforma selecionada
 - **Memória de conversa** — a IA lembra das mensagens anteriores dentro da sessão
+- **RAG interno** — respostas enriquecidas com conteúdo da base de conhecimento local antes de chamar o modelo
 
 ### 🐧 Suporte a Linux
 
@@ -101,12 +110,22 @@ Botão na sidebar (destaque vermelho) que reinicia a conversa e limpa todo o his
 Streamlit UI
      │
      │  session_state
-     │  ├── messages[]         ← histórico completo
+     │  ├── messages[]          ← histórico completo
+     │  ├── knowledge_base[]    ← chunks da KB (carregado 1x por sessão)
      │  └── emergency_triggered ← flag anti-duplicata
      ▼
 OpsGuide App (pending_prompt)
      │
-     │ HTTP API (streaming)
+     ├── core/rag.py
+     │   └── simple_similarity_search()  ← enriquece o prompt com contexto interno
+     │
+     ├── core/llm.py
+     │   └── call_mistral_api() + stream_response()  ← HTTP streaming
+     │
+     └── core/parser.py
+         ├── extract_code()     ← detecta script para download
+         └── extract_mermaid()  ← detecta diagrama para renderização
+     │
      ▼
 Mistral AI — mistral-small-latest
      │
@@ -133,8 +152,8 @@ Resposta com:
 ## 📦 Instalação
 
 ```bash
-git clone https://github.com/seuusuario/opsguide-architect.git
-cd opsguide-architect
+git clone https://github.com/Gustavo-Meneses/opsguide.git
+cd opsguide
 pip install -r requirements.txt
 ```
 
@@ -161,11 +180,20 @@ streamlit run app.py
 ## 📁 Estrutura do Projeto
 
 ```
-opsguide-architect/
+opsguide/
 │
 ├── app.py
 ├── README.md
 ├── requirements.txt
+│
+├── core/
+│   ├── __init__.py
+│   ├── llm.py        ← API Mistral + streaming
+│   ├── rag.py        ← base de conhecimento + busca
+│   └── parser.py     ← extração de código e Mermaid
+│
+├── data/
+│   └── base_conhecimento.txt  ← base RAG (chunks separados por linha em branco)
 │
 └── .streamlit/
     └── secrets.toml
@@ -179,6 +207,26 @@ opsguide-architect/
 streamlit>=1.32.0
 requests>=2.31.0
 ```
+
+---
+
+## 🗂️ Base de Conhecimento (RAG)
+
+O arquivo `data/base_conhecimento.txt` é a base interna do assistente. Adicione procedimentos, runbooks e referências técnicas do seu ambiente — o sistema recupera automaticamente os trechos mais relevantes antes de cada resposta.
+
+**Formato:** texto livre, com blocos separados por uma linha em branco.
+
+```
+Reiniciar serviço no Oracle Linux:
+sudo systemctl restart <servico>
+sudo systemctl status <servico>
+
+Verificar uso de disco:
+df -hT
+du -sh /* 2>/dev/null | sort -rh | head -20
+```
+
+Quanto mais específico for o conteúdo (comandos do seu ambiente, IPs internos, nomes de serviços), mais úteis serão as respostas.
 
 ---
 
@@ -200,6 +248,7 @@ requests>=2.31.0
 - Histórico persistente entre sessões
 - Exportação de diagramas em PNG/SVG
 - Suporte a múltiplos modelos de IA
+- Embeddings vetoriais para substituir o RAG léxico
 
 ---
 
